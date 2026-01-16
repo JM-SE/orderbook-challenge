@@ -28,3 +28,23 @@ A task is considered done when:
 ## Template
 
 Use `TEMPLATE.md` as the canonical task format.
+
+## Backlog (High Level)
+
+This is a lightweight roadmap. Only the next 1–2 tasks should have full specs at any given time.
+
+Planned tasks (titles may evolve as we implement):
+
+- 001 Remove Next.js Boilerplate
+- 002 Orderbook Types + Normalization
+- 003 Binance WebSocket Client Wrapper
+- 004 Orderbook Store Module (feature-scoped)
+- 005 `useOrderbook(symbol)` Hook (public feature API)
+- 006 Orderbook UI Components (selector + bids/asks)
+- 007 App Integration (route/page wiring)
+- 008 Test Harness (WebSocket mocking helpers)
+
+Optional / bonus tasks:
+
+- 009 UI Extras (spread indicator + depth bars)
+- 010 Bounded Reconnection Policy
