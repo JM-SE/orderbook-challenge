@@ -1,39 +1,8 @@
 import type { BinanceDepth10Message } from "../types";
+import { FakeWebSocket, emitMessage, emitRaw } from "../test-utils/fakeWebSocket";
 import { BINANCE_DEPTH_INTERVAL_MS, BINANCE_DEPTH_LEVELS, BINANCE_WS_BASE_URL } from "./binanceWsConfig";
 import { buildBinanceDepthStreamName } from "./buildBinanceDepthStreamName";
 import { createBinanceWsClient } from "./createBinanceWsClient";
-
-type MessageHandler = (event: { data: string }) => void;
-
-type FakeSocket = {
-  onmessage: MessageHandler | null;
-  onerror: ((event: unknown) => void) | null;
-  onclose: ((event: unknown) => void) | null;
-  close: jest.Mock;
-};
-
-class FakeWebSocket {
-  static lastUrl: string | null = null;
-  static instances: FakeSocket[] = [];
-
-  onmessage: MessageHandler | null = null;
-  onerror: ((event: unknown) => void) | null = null;
-  onclose: ((event: unknown) => void) | null = null;
-  close = jest.fn();
-
-  constructor(url: string) {
-    FakeWebSocket.lastUrl = url;
-    FakeWebSocket.instances.push(this);
-  }
-}
-
-function emitMessage(socket: FakeSocket, payload: unknown) {
-  socket.onmessage?.({ data: JSON.stringify(payload) });
-}
-
-function emitRaw(socket: FakeSocket, raw: string) {
-  socket.onmessage?.({ data: raw });
-}
 
 describe("buildBinanceDepthStreamName", () => {
   it("lowercases the symbol", () => {
@@ -49,8 +18,7 @@ describe("buildBinanceDepthStreamName", () => {
 
 describe("createBinanceWsClient", () => {
   beforeEach(() => {
-    FakeWebSocket.instances = [];
-    FakeWebSocket.lastUrl = null;
+    FakeWebSocket.reset();
   });
 
   it("builds the correct WebSocket URL", () => {

@@ -1,60 +1,43 @@
 import type { BinanceDepth10Message } from "../types";
+import { createFakeWsClientFactory } from "../test-utils/fakeWsClientFactory";
+import { stubRafQueue } from "../test-utils/raf";
 import { createOrderbookStore } from "./orderbookStore";
 
-type WsClientHandlers = {
-  onMessage: (payload: BinanceDepth10Message) => void;
-  onError: (error: unknown) => void;
-  onClose: (event: unknown) => void;
-};
-
-type FakeClient = {
-  connect: jest.Mock;
-  close: jest.Mock;
-  handlers: WsClientHandlers;
-};
-
-type FakeClientFactory = (args: { symbol: string } & WsClientHandlers) => FakeClient;
-
-type FakeClientFactoryResult = {
-  clients: FakeClient[];
-  factory: FakeClientFactory;
-};
-
-function createFakeClientFactory(): FakeClientFactoryResult {
-  const clients: FakeClient[] = [];
-
-  const factory: FakeClientFactory = (args) => {
-    const client: FakeClient = {
-      connect: jest.fn(),
-      close: jest.fn(),
-      handlers: {
-        onMessage: args.onMessage,
-        onError: args.onError,
-        onClose: args.onClose,
-      },
-    };
-
-    clients.push(client);
-    return client;
-  };
-
-  return { clients, factory };
-}
-
 describe("orderbookStore", () => {
-  beforeEach(() => {
-    (global as { requestAnimationFrame?: (cb: () => void) => number }).requestAnimationFrame =
-      (cb) => {
-        cb();
-        return 1;
-      };
-    (global as { cancelAnimationFrame?: (id: number) => void }).cancelAnimationFrame = jest.fn();
-  });
-
   it("stores normalized top 10 levels", () => {
-    const { clients, factory } = createFakeClientFactory();
+    const { flush } = stubRafQueue();
+    const { clients, factory } = createFakeWsClientFactory();
     const store = createOrderbookStore(factory);
 
+    store.connect("BTCUSDT");
+
+    const payload: BinanceDepth10Message = {
+      lastUpdateId: 1,
+      bids: [
+        ["100", "1"],
+        ["101", "2"],
+      ],
+      asks: [
+        ["102", "1"],
+        ["103", "2"],
+      ],
+    };
+
+    clients[0].handlers.onMessage(payload);
+    flush();
+
+    const snapshot = store.getSnapshot();
+    expect(snapshot.bids).toHaveLength(2);
+    expect(snapshot.asks).toHaveLength(2);
+    expect(snapshot.bids[0].price).toBe(101);
+    expect(snapshot.asks[0].price).toBe(102);
+    expect(snapshot.status).toBe("connected");
+  });
+
+  it("closes previous connection when switching symbols", () => {
+    stubRafQueue();
+    const { clients, factory } = createFakeWsClientFactory();
+    const store = createOrderbookStore(factory);
 
     store.connect("BTCUSDT");
     store.connect("ETHUSDT");
@@ -65,14 +48,8 @@ describe("orderbookStore", () => {
   });
 
   it("batches updates so latest payload wins", () => {
-    const rafQueue: Array<() => void> = [];
-    (global as { requestAnimationFrame?: (cb: () => void) => number }).requestAnimationFrame =
-      (cb) => {
-        rafQueue.push(cb);
-        return 1;
-      };
-
-    const { clients, factory } = createFakeClientFactory();
+    const { flush } = stubRafQueue();
+    const { clients, factory } = createFakeWsClientFactory();
     const store = createOrderbookStore(factory);
 
     store.connect("BTCUSDT");
@@ -92,10 +69,38 @@ describe("orderbookStore", () => {
     clients[0].handlers.onMessage(first);
     clients[0].handlers.onMessage(second);
 
-    rafQueue.forEach((cb) => cb());
+    flush();
 
     const snapshot = store.getSnapshot();
     expect(snapshot.bids[0].price).toBe(200);
     expect(snapshot.asks[0].price).toBe(201);
+  });
+
+  it("sets error state on client error", () => {
+    stubRafQueue();
+    const { clients, factory } = createFakeWsClientFactory();
+    const store = createOrderbookStore(factory);
+
+    store.connect("BTCUSDT");
+
+    clients[0].handlers.onError(new Error("boom"));
+
+    const snapshot = store.getSnapshot();
+    expect(snapshot.status).toBe("error");
+    expect(snapshot.error).toBe("boom");
+  });
+
+  it("sets error state on client close", () => {
+    stubRafQueue();
+    const { clients, factory } = createFakeWsClientFactory();
+    const store = createOrderbookStore(factory);
+
+    store.connect("BTCUSDT");
+
+    clients[0].handlers.onClose({ code: 1000 });
+
+    const snapshot = store.getSnapshot();
+    expect(snapshot.status).toBe("error");
+    expect(snapshot.error).toBe("Connection closed");
   });
 });
