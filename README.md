@@ -65,6 +65,11 @@ Basic tests should validate core behavior:
 
 (Testing setup may be added/expanded as the project evolves.)
 
+## Dependency Audit Note
+
+`npm audit` may report vulnerabilities in transitive **dev tooling** dependencies.
+This repo intentionally avoids `npm audit fix --force` because it can introduce breaking upgrades (e.g., major framework/tooling changes) that are out of scope for this take-home.
+
 ## What I’d improve with more time
 
 - Full orderbook synchronization (snapshot + deltas)

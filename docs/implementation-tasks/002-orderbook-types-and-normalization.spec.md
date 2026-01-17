@@ -9,16 +9,25 @@ This task defines the core TypeScript types and normalization utilities that lat
 
 ## Requirements
 
-- [ ] Define TypeScript types for:
+- [x] Add a minimal Jest test runner setup (first time tests are introduced in this repo):
+  - [x] Add `test` and `test:watch` scripts in `package.json`
+  - [x] Add Jest config using `next/jest`
+  - [x] Ensure TS path alias `@/*` works in tests
+  - [x] Add `jest.setup.js` (future-proof for UI tests)
+- [x] Define TypeScript types for:
   - raw Binance orderbook payload (`bids`/`asks` as string tuples)
   - normalized orderbook levels (price/quantity as numbers)
   - derived UI-ready structure (top 10 bids/asks)
-- [ ] Implement normalization utilities:
+- [x] Implement normalization utilities:
   - convert strings to numbers
   - drop invalid levels (non-finite numbers, negative values)
   - sort bids/asks in the correct direction
   - keep only the top 10 levels per side
-- [ ] Add unit tests validating normalization behavior.
+- [x] Add unit tests validating normalization behavior.
+
+## Implementation Notes
+
+- Jest config ignores `.next/` to avoid module naming collisions caused by Next.js standalone output.
 
 ## Out of Scope (Task)
 
@@ -49,9 +58,10 @@ Suggested module boundaries:
 
 ## Acceptance Criteria
 
-- [ ] Types are explicit and used by the normalization function.
-- [ ] `normalizeOrderbook` is pure and deterministic.
-- [ ] Unit tests cover the core behavior and pass locally.
+- [x] `npm run test` exists and passes.
+- [x] Types are explicit and used by the normalization function.
+- [x] `normalizeOrderbook` is pure and deterministic.
+- [x] Unit tests cover the core behavior and pass locally.
 
 ## Notes for Review
 
