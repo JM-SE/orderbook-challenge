@@ -1,4 +1,5 @@
 import type { OrderbookLevel } from "../types";
+import { computeDepthRatios } from "../lib/computeDepthRatios";
 import { OrderbookRow } from "./OrderbookRow";
 
 interface OrderbookTableProps {
@@ -11,7 +12,8 @@ interface OrderbookTableProps {
 const emptyLevels = Array.from({ length: 10 }, () => ({ price: null, quantity: null }));
 
 export function OrderbookTable({ title, tone, levels, rowCount = 10 }: OrderbookTableProps) {
-  const rows = [...levels, ...emptyLevels].slice(0, rowCount);
+  const rowsWithRatios = computeDepthRatios(levels, rowCount);
+  const rows = [...rowsWithRatios, ...emptyLevels].slice(0, rowCount);
 
   return (
     <div className="rounded-md border border-[var(--border)] bg-[var(--surface)] p-4">
@@ -31,6 +33,7 @@ export function OrderbookTable({ title, tone, levels, rowCount = 10 }: Orderbook
             price={row.price}
             quantity={row.quantity}
             tone={tone}
+            barRatio={"barRatio" in row ? row.barRatio : 0}
           />
         ))}
       </div>
