@@ -1,9 +1,9 @@
-type PairSelectorProps = {
+interface PairSelectorProps {
   label: string;
   symbol: string;
   options: string[];
   onChange: (symbol: string) => void;
-};
+}
 
 export function PairSelector({ label, symbol, options, onChange }: PairSelectorProps) {
   return (

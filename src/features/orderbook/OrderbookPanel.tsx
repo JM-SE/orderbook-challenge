@@ -1,23 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useOrderbook } from "./hooks/useOrderbook";
 import { OrderbookTable } from "./components/OrderbookTable";
 import { PairSelector } from "./components/PairSelector";
-
-const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"];
-
-function formatStatus(status: "idle" | "connecting" | "connected" | "error") {
-  if (status === "connected") return "Live";
-  if (status === "connecting") return "Connecting";
-  if (status === "error") return "Error";
-  return "Idle";
-}
+import { useOrderbook } from "./hooks/useOrderbook";
+import { formatOrderbookStatus } from "./lib/formatOrderbookStatus";
+import { DEFAULT_SYMBOL, ORDERBOOK_SYMBOLS } from "./orderbookConfig";
 
 export function OrderbookPanel() {
-  const [symbol, setSymbol] = useState(SYMBOLS[0]);
+  const [symbol, setSymbol] = useState<string>(DEFAULT_SYMBOL);
   const { bids, asks, status, error } = useOrderbook(symbol);
-  const statusLabel = useMemo(() => formatStatus(status), [status]);
+  const statusLabel = useMemo(() => formatOrderbookStatus(status), [status]);
 
   return (
     <section className="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -43,7 +36,12 @@ export function OrderbookPanel() {
       </header>
 
       <div className="flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
-        <PairSelector label="Trading pair" symbol={symbol} options={SYMBOLS} onChange={setSymbol} />
+        <PairSelector
+          label="Trading pair"
+          symbol={symbol}
+          options={[...ORDERBOOK_SYMBOLS]}
+          onChange={setSymbol}
+        />
         {status === "error" && (
           <p className="text-sm text-[var(--ask)]">{error ?? "Connection error"}</p>
         )}

@@ -1,12 +1,12 @@
 import type { OrderbookLevel } from "../types";
 import { OrderbookRow } from "./OrderbookRow";
 
-type OrderbookTableProps = {
+interface OrderbookTableProps {
   title: string;
   tone: "bid" | "ask";
   levels: OrderbookLevel[];
   rowCount?: number;
-};
+}
 
 const emptyLevels = Array.from({ length: 10 }, () => ({ price: null, quantity: null }));
 
