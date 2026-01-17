@@ -9,18 +9,19 @@ This wrapper must not own UI state or rendering policies (those belong to the st
 
 ## Requirements
 
-- [ ] Provide a function to build the Binance stream name from a symbol:
-  - `<symbol>@depth10@100ms` (symbol must be lowercased)
-- [ ] Provide a WebSocket client wrapper that:
-  - [ ] opens a WebSocket connection
-  - [ ] closes and cleans up the connection on demand
-  - [ ] parses incoming messages into the raw payload shape (reuse types from task 002)
-  - [ ] exposes callbacks/events for:
+- [x] Provide a function to build the Binance stream name from a symbol:
+  - `<symbol>@depth{levels}@{intervalMs}ms` (symbol must be lowercased, defaults to 10/100)
+- [x] Expose depth levels and interval defaults via a small config module.
+- [x] Provide a WebSocket client wrapper that:
+  - [x] opens a WebSocket connection
+  - [x] closes and cleans up the connection on demand
+  - [x] parses incoming messages into the raw payload shape (reuse types from task 002)
+  - [x] exposes callbacks/events for:
     - `onMessage(payload)`
     - `onError(error)`
     - `onClose(event)`
-- [ ] The wrapper must be usable without React.
-- [ ] Unit tests (no real network) validating:
+- [x] The wrapper must be usable without React.
+- [x] Unit tests (no real network) validating:
   - URL/stream generation
   - message parsing (valid payload)
   - invalid message handling (does not crash; surfaces an error signal)
@@ -42,18 +43,19 @@ This wrapper must not own UI state or rendering policies (those belong to the st
 - Keep the API explicit and small.
 
 Suggested module boundaries:
-- `src/features/orderbook/lib/buildBinanceDepth10StreamName.ts`
+- `src/features/orderbook/lib/binanceWsConfig.ts`
+- `src/features/orderbook/lib/buildBinanceDepthStreamName.ts`
 - `src/features/orderbook/lib/createBinanceWsClient.ts`
 
 ## Implementation Steps
 
-1. Implement `buildBinanceDepth10StreamName(symbol)`.
+1. Implement `buildBinanceDepthStreamName(symbol, { levels, intervalMs })`.
 2. Implement a client factory that accepts callbacks and a WebSocket implementation.
 3. Parse incoming `message.data` as JSON and validate a minimal expected shape.
 4. Add unit tests using a fake WebSocket implementation (no network).
 
 ## Acceptance Criteria
 
-- [ ] `npm run test` passes.
-- [ ] Wrapper can be used without React.
-- [ ] No store/hook/UI responsibilities are introduced.
+- [x] `npm run test` passes.
+- [x] Wrapper can be used without React.
+- [x] No store/hook/UI responsibilities are introduced.
