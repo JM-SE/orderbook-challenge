@@ -34,11 +34,11 @@ Before implementing the orderbook viewer, we want to minimize noise and keep the
 
 ## Acceptance Criteria
 
-- [ ] `npm run dev` starts without errors and the home page renders minimal content.
-- [ ] `npm run build` succeeds.
-- [ ] `docker build -t orderbook-challenge .` succeeds.
-- [ ] `docker run --rm -p 3000:3000 orderbook-challenge` serves the app on port 3000.
-- [ ] The main UI no longer contains default Next.js template content.
+- [x] `npm run dev` starts without errors and the home page renders minimal content.
+- [x] `npm run build` succeeds.
+- [x] `docker build -t orderbook-challenge .` succeeds.
+- [x] `docker run --rm -p 3000:3000 orderbook-challenge` serves the app on port 3000.
+- [x] The main UI no longer contains default Next.js template content.
 
 ## Notes for Review
 
