@@ -14,8 +14,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Orderbook Viewer",
-  description: "WebSocket-first Binance orderbook viewer (frontend challenge)",
+  title: "Orderbook Viewer — WebSocket-first",
+  description: "Real-time Binance depth10 viewer built with Next.js 14 and React 18.",
 };
 
 export default function RootLayout({
@@ -26,9 +26,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-[var(--background)] text-[var(--foreground)] antialiased`}
       >
-        {children}
+        <main className="min-h-screen px-6 py-10">
+          <div className="mx-auto w-full max-w-6xl">{children}</div>
+        </main>
       </body>
     </html>
   );

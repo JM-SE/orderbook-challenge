@@ -36,12 +36,13 @@ Open `http://localhost:3000`.
 
 - `npm run dev` – run the dev server
 - `npm run build` – build the production bundle
-- `npm run start` – run the production server
+- `npm run start` – run the production server (standalone output)
 - `npm run lint` – run lint checks
 
 ## Design Decisions / Trade-offs
 
 - **WebSocket-first (no polling):** the original prompt suggests REST polling as a baseline, but also lists WebSockets as an optional bonus. This repo implements the WebSocket path to reduce staleness and better model trading-style UIs.
+- **Single-route UI:** the experience lives on `/` to avoid extra screens that add little evaluation signal for this challenge.
 - **Display-only correctness:** market data is treated as informational and eventually consistent. The UI does not attempt full orderbook reconstruction (snapshot + deltas).
 - **Scope boundaries:** no auth, no trading actions, no persistence, no backend proxy.
 - **UI stability over perfect accuracy:** updates are bounded to avoid flicker/layout shifts and render storms.

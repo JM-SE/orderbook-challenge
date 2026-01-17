@@ -123,6 +123,7 @@ and exposed to React via a **mandatory custom hook** (React-friendly adapter).
 - UI components must not handle WebSocket URLs, protocol details, or cleanup logic.
 - The custom hook should not contain complex parsing/normalization logic (that belongs to the client/store).
 - Do not introduce complex reconnection state machines unless required by `docs/SPEC.md`.
+- The client-only entrypoint for the feature is `src/features/orderbook/OrderbookPanel.tsx`. Server components must not import the store or WebSocket client directly.
 
 Feature contract (recommended):
 - The orderbook feature exposes a single React entrypoint: `useOrderbook(symbol)`.
