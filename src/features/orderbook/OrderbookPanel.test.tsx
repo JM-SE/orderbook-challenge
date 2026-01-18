@@ -1,5 +1,6 @@
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { BINANCE_DEPTH_INTERVAL_MS, BINANCE_DEPTH_LEVELS } from "./lib/binance/binanceWsConfig";
 import { OrderbookPanel } from "./OrderbookPanel";
 
 const useOrderbookMock = jest.fn();
@@ -24,6 +25,9 @@ describe("OrderbookPanel", () => {
     expect(screen.getByText("Status")).toBeInTheDocument();
     expect(screen.getByText("Connecting")).toBeInTheDocument();
     expect(screen.getByLabelText("Trading pair")).toBeInTheDocument();
+    expect(
+      screen.getByText(new RegExp(`Depth\\s+${BINANCE_DEPTH_LEVELS}\\s+•\\s+${BINANCE_DEPTH_INTERVAL_MS}ms`))
+    ).toBeInTheDocument();
   });
 
   it("changes symbol from selector", () => {

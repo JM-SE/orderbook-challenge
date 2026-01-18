@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { OrderbookTable } from "./components/OrderbookTable";
 import { PairSelector } from "./components/PairSelector";
 import { useOrderbook } from "./hooks/useOrderbook";
+import { BINANCE_DEPTH_INTERVAL_MS, BINANCE_DEPTH_LEVELS } from "./lib/binance/binanceWsConfig";
 import { deriveSpreadMetrics } from "./lib/deriveSpreadMetrics";
 import { formatOrderbookStatus } from "./lib/formatOrderbookStatus";
 import { formatSpread } from "./lib/formatSpread";
@@ -67,7 +68,7 @@ export function OrderbookPanel() {
         </div>
         <div className="flex flex-col items-start justify-end gap-1 text-xs uppercase tracking-wide text-[var(--muted)]">
           <span className="text-[var(--foreground)]">{symbol}</span>
-          <span>Depth {ORDERBOOK_SYMBOLS.length >= 5 ? "10" : "10"} • 100ms</span>
+          <span>Depth {BINANCE_DEPTH_LEVELS} • {BINANCE_DEPTH_INTERVAL_MS}ms</span>
         </div>
       </div>
 

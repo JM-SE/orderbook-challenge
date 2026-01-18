@@ -1,5 +1,5 @@
-import type { BinanceDepth10Message } from "../types";
-import { FakeWebSocket, emitMessage, emitRaw } from "../test-utils/fakeWebSocket";
+import type { BinanceDepth10Message } from "../../types";
+import { FakeWebSocket, emitMessage, emitRaw } from "../../test-utils/fakeWebSocket";
 import { BINANCE_DEPTH_INTERVAL_MS, BINANCE_DEPTH_LEVELS, BINANCE_WS_BASE_URL } from "./binanceWsConfig";
 import { buildBinanceDepthStreamName } from "./buildBinanceDepthStreamName";
 import { createBinanceWsClient } from "./createBinanceWsClient";

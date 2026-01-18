@@ -9,7 +9,7 @@ This repository intentionally implements the **WebSocket-first** approach (liste
 - Trading pair selector with a predefined list of **>= 5 symbols**
 - Top **10 bids** and **10 asks** (price + quantity)
 - Clear visual distinction between bids and asks
-- Live updates via Binance WebSocket stream (`<symbol>@depth10@100ms`)
+- Live updates via Binance WebSocket stream (`<symbol>@depth10@{interval}ms`)
 - Explicit UI states: loading/connecting, error, empty/unavailable data
 
 ## Running (Docker)
@@ -38,10 +38,13 @@ Open `http://localhost:3000`.
 - `npm run build` – build the production bundle
 - `npm run start` – run the production server (standalone output)
 - `npm run lint` – run lint checks
+- `npm run test` – run unit tests (Jest)
+- `npm run test:watch` – run tests in watch mode
 
 ## Design Decisions / Trade-offs
 
 - **WebSocket-first (no polling):** the original prompt suggests REST polling as a baseline, but also lists WebSockets as an optional bonus. This repo implements the WebSocket path to reduce staleness and better model trading-style UIs.
+- **Update cadence:** because updates are push-based, the stream interval comes from Binance (`@depth10@100ms`) rather than a client polling timer. The interval is configurable in `src/features/orderbook/lib/binance/binanceWsConfig.ts` if you want a slower 1000ms cadence.
 - **Single-route UI:** the experience lives on `/` to avoid extra screens that add little evaluation signal for this challenge.
 - **Display-only correctness:** market data is treated as informational and eventually consistent. The UI does not attempt full orderbook reconstruction (snapshot + deltas).
 - **Scope boundaries:** no auth, no trading actions, no persistence, no backend proxy.

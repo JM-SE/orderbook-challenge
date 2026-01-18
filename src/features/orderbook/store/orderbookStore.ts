@@ -1,6 +1,6 @@
 import type { BinanceDepth10Message, NormalizedOrderbook } from "../types";
 import { normalizeOrderbook } from "../lib/normalizeOrderbook";
-import { createBinanceWsClient } from "../lib/createBinanceWsClient";
+import { createBinanceWsClient } from "../lib/binance/createBinanceWsClient";
 import { createEmitter } from "./internal/emitter";
 import { createRafBatcher } from "./internal/rafBatcher";
 import { createRetryScheduler } from "./internal/retryScheduler";

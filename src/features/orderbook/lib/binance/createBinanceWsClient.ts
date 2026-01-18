@@ -1,4 +1,4 @@
-import type { BinanceDepth10Message } from "../types";
+import type { BinanceDepth10Message } from "../../types";
 import { BINANCE_WS_BASE_URL } from "./binanceWsConfig";
 import { buildBinanceDepthStreamName } from "./buildBinanceDepthStreamName";
 
