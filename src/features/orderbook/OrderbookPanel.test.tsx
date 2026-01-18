@@ -59,11 +59,8 @@ describe("OrderbookPanel", () => {
 
     render(<OrderbookPanel />);
 
-    // Price values should appear at least once
     expect(screen.getByText("100.00")).toBeInTheDocument();
     expect(screen.getByText("101.00")).toBeInTheDocument();
-
-    // Spread should be rendered
     expect(screen.getByText("Spread")).toBeInTheDocument();
   });
 });

@@ -1,6 +1,10 @@
 import type { BinanceDepth10Message, NormalizedOrderbook } from "../types";
 import { normalizeOrderbook } from "../lib/normalizeOrderbook";
 import { createBinanceWsClient } from "../lib/createBinanceWsClient";
+import { createEmitter } from "./internal/emitter";
+import { createRafBatcher } from "./internal/rafBatcher";
+import { createRetryScheduler } from "./internal/retryScheduler";
+import { createConnectionGuard } from "./internal/connectionGuard";
 
 export type OrderbookStatus = "idle" | "connecting" | "connected" | "error";
 
@@ -14,8 +18,6 @@ export type OrderbookSnapshot = {
   asks: NormalizedOrderbook["asks"];
   error: string | null;
 };
-
-type Subscriber = () => void;
 
 type WsClient = ReturnType<typeof createBinanceWsClient>;
 
@@ -45,80 +47,65 @@ export function createOrderbookStore(
 ) {
   let snapshot: OrderbookSnapshot = { ...defaultSnapshot };
   let currentClient: WsClient | null = null;
-  const subscribers = new Set<Subscriber>();
-  let scheduled = false;
-  let latestPayload: BinanceDepth10Message | null = null;
-  let rafId: number | null = null;
-  let retryCount = 0;
-  let retryTimeoutId: number | null = null;
-  let pendingSymbol: string | null = null;
-  let connectionId = 0;
 
-  const emit = () => {
-    subscribers.forEach((listener) => listener());
-  };
-
-  const scheduleEmit = () => {
-    if (scheduled) return;
-    scheduled = true;
-
-    const schedule = typeof requestAnimationFrame === "function"
-      ? requestAnimationFrame
-      : (cb: () => void) => setTimeout(cb, 0) as unknown as number;
-
-    rafId = schedule(() => {
-      scheduled = false;
-      rafId = null;
-
-      if (latestPayload) {
-        const normalized = normalizeOrderbook(latestPayload);
-        snapshot = {
-          ...snapshot,
-          bids: normalized.bids,
-          asks: normalized.asks,
-          status: "connected",
-          error: null,
-        };
-        latestPayload = null;
-      }
-
-      emit();
-    });
-  };
+  const guard = createConnectionGuard();
+  const { emit, subscribe: onChange } = createEmitter();
 
   const setSnapshot = (next: Partial<OrderbookSnapshot>) => {
     snapshot = { ...snapshot, ...next };
     emit();
   };
 
+  const rafBatcher = createRafBatcher((payload: BinanceDepth10Message) => {
+    const normalized = normalizeOrderbook(payload);
+    setSnapshot({
+      bids: normalized.bids,
+      asks: normalized.asks,
+      status: "connected",
+      error: null,
+    });
+  });
+
+  let pendingSymbol: string | null = null;
+  let pendingError: string | null = null;
+
+  const retryScheduler = createRetryScheduler({
+    maxRetries: MAX_RETRIES,
+    delaysMs: RETRY_DELAYS_MS,
+    onRetry: () => {
+      if (!pendingSymbol) return;
+      connectInternal(pendingSymbol, false, true);
+    },
+    onFail: () => {
+      const reason = pendingError ?? "Unknown error";
+      setSnapshot({ status: "error", error: reason });
+    },
+  });
+
   const clearRetry = () => {
-    retryCount = 0;
     pendingSymbol = null;
-    if (retryTimeoutId !== null) {
-      clearTimeout(retryTimeoutId);
-      retryTimeoutId = null;
-    }
+    pendingError = null;
+    retryScheduler.clear();
   };
 
   const scheduleRetry = (symbol: string, reason: string) => {
-    if (retryCount >= MAX_RETRIES) {
-      setSnapshot({ status: "error", error: reason });
-      return;
-    }
-
-    const delay = RETRY_DELAYS_MS[retryCount] ?? RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1];
-    retryCount += 1;
     pendingSymbol = symbol;
-
+    pendingError = reason;
     setSnapshot({ status: "connecting", error: null });
-
-    retryTimeoutId = setTimeout(() => {
-      retryTimeoutId = null;
-      if (pendingSymbol) connectInternal(pendingSymbol, false, true);
-    }, delay) as unknown as number;
+    retryScheduler.schedule();
   };
 
-  const connectInternal = (symbol: string, resetRetry: boolean, keepRetryState = false) => {
+  function disconnect(keepRetryState = false) {
+    if (currentClient) {
+      currentClient.close();
+      currentClient = null;
+    }
+
+    rafBatcher.cancel();
+    if (!keepRetryState) clearRetry();
+  }
+
+  function connectInternal(symbol: string, resetRetry: boolean, keepRetryState = false) {
     if (snapshot.symbol === symbol && currentClient && !keepRetryState) return;
 
     if (resetRetry) clearRetry();
@@ -131,23 +118,21 @@ export function createOrderbookStore(
     };
     emit();
 
-    connectionId += 1;
-    const activeId = connectionId;
+    const activeId = guard.next();
 
     currentClient = createClient({
       symbol,
       onMessage: (payload) => {
-        if (activeId !== connectionId) return;
-        latestPayload = payload;
+        if (!guard.isActive(activeId)) return;
         clearRetry();
-        scheduleEmit();
+        rafBatcher.schedule(payload);
       },
       onError: (error) => {
-        if (activeId !== connectionId) return;
+        if (!guard.isActive(activeId)) return;
         scheduleRetry(symbol, toErrorMessage(error));
       },
       onClose: () => {
-        if (activeId !== connectionId) return;
+        if (!guard.isActive(activeId)) return;
         if (snapshot.symbol === symbol) {
           scheduleRetry(symbol, "Connection closed");
         }
@@ -155,46 +140,19 @@ export function createOrderbookStore(
     });
 
     currentClient.connect();
-  };
+  }
 
   const connect = (symbol: string) => {
     connectInternal(symbol, true);
   };
 
-  const disconnect = (keepRetryState = false) => {
-    if (currentClient) {
-      currentClient.close();
-      currentClient = null;
-    }
-
-    if (rafId !== null) {
-      const cancel = typeof cancelAnimationFrame === "function"
-        ? cancelAnimationFrame
-        : (id: number) => clearTimeout(id);
-
-      cancel(rafId);
-      rafId = null;
-      scheduled = false;
-    }
-
-    latestPayload = null;
-    if (!keepRetryState) clearRetry();
-  };
-
   const getSnapshot = () => snapshot;
-
-  const subscribe = (listener: Subscriber) => {
-    subscribers.add(listener);
-    return () => {
-      subscribers.delete(listener);
-    };
-  };
 
   return {
     connect,
     disconnect,
     getSnapshot,
-    subscribe,
+    subscribe: onChange,
   };
 }
 

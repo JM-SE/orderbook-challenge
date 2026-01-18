@@ -112,7 +112,6 @@ describe("orderbookStore", () => {
       clients[3].handlers.onError(new Error("boom4"));
       jest.advanceTimersByTime(1000);
 
-      // After max retries, no new client should be created
       expect(clients).toHaveLength(4);
       expect(store.getSnapshot().status).toBe("error");
     });
@@ -129,11 +128,9 @@ describe("orderbookStore", () => {
       clients[0].handlers.onError(new Error("boom"));
       store.connect("ETHUSDT");
 
-      // New symbol should create a new client immediately
       expect(clients).toHaveLength(2);
       expect(clients[1].connect).toHaveBeenCalledTimes(1);
 
-      // Late close from old client should be ignored
       clients[0].handlers.onClose({ code: 1000 });
       expect(store.getSnapshot().status).toBe("connecting");
     });
@@ -159,7 +156,6 @@ describe("orderbookStore", () => {
       });
       flush();
 
-      // After success, another error should start retries from scratch
       clients[1].handlers.onError(new Error("boom2"));
       jest.runOnlyPendingTimers();
       expect(clients).toHaveLength(3);
