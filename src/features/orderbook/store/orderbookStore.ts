@@ -4,6 +4,9 @@ import { createBinanceWsClient } from "../lib/createBinanceWsClient";
 
 export type OrderbookStatus = "idle" | "connecting" | "connected" | "error";
 
+const MAX_RETRIES = 3;
+const RETRY_DELAYS_MS = [250, 500, 1000];
+
 export type OrderbookSnapshot = {
   symbol: string | null;
   status: OrderbookStatus;
@@ -46,6 +49,10 @@ export function createOrderbookStore(
   let scheduled = false;
   let latestPayload: BinanceDepth10Message | null = null;
   let rafId: number | null = null;
+  let retryCount = 0;
+  let retryTimeoutId: number | null = null;
+  let pendingSymbol: string | null = null;
+  let connectionId = 0;
 
   const emit = () => {
     subscribers.forEach((listener) => listener());
@@ -84,10 +91,38 @@ export function createOrderbookStore(
     emit();
   };
 
-  const connect = (symbol: string) => {
-    if (snapshot.symbol === symbol && currentClient) return;
+  const clearRetry = () => {
+    retryCount = 0;
+    pendingSymbol = null;
+    if (retryTimeoutId !== null) {
+      clearTimeout(retryTimeoutId);
+      retryTimeoutId = null;
+    }
+  };
 
-    disconnect();
+  const scheduleRetry = (symbol: string, reason: string) => {
+    if (retryCount >= MAX_RETRIES) {
+      setSnapshot({ status: "error", error: reason });
+      return;
+    }
+
+    const delay = RETRY_DELAYS_MS[retryCount] ?? RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1];
+    retryCount += 1;
+    pendingSymbol = symbol;
+
+    setSnapshot({ status: "connecting", error: null });
+
+    retryTimeoutId = setTimeout(() => {
+      retryTimeoutId = null;
+      if (pendingSymbol) connectInternal(pendingSymbol, false, true);
+    }, delay) as unknown as number;
+  };
+
+  const connectInternal = (symbol: string, resetRetry: boolean, keepRetryState = false) => {
+    if (snapshot.symbol === symbol && currentClient && !keepRetryState) return;
+
+    if (resetRetry) clearRetry();
+    disconnect(keepRetryState);
 
     snapshot = {
       ...defaultSnapshot,
@@ -96,18 +131,25 @@ export function createOrderbookStore(
     };
     emit();
 
+    connectionId += 1;
+    const activeId = connectionId;
+
     currentClient = createClient({
       symbol,
       onMessage: (payload) => {
+        if (activeId !== connectionId) return;
         latestPayload = payload;
+        clearRetry();
         scheduleEmit();
       },
       onError: (error) => {
-        setSnapshot({ status: "error", error: toErrorMessage(error) });
+        if (activeId !== connectionId) return;
+        scheduleRetry(symbol, toErrorMessage(error));
       },
       onClose: () => {
+        if (activeId !== connectionId) return;
         if (snapshot.symbol === symbol) {
-          setSnapshot({ status: "error", error: "Connection closed" });
+          scheduleRetry(symbol, "Connection closed");
         }
       },
     });
@@ -115,7 +157,11 @@ export function createOrderbookStore(
     currentClient.connect();
   };
 
-  const disconnect = () => {
+  const connect = (symbol: string) => {
+    connectInternal(symbol, true);
+  };
+
+  const disconnect = (keepRetryState = false) => {
     if (currentClient) {
       currentClient.close();
       currentClient = null;
@@ -132,6 +178,7 @@ export function createOrderbookStore(
     }
 
     latestPayload = null;
+    if (!keepRetryState) clearRetry();
   };
 
   const getSnapshot = () => snapshot;

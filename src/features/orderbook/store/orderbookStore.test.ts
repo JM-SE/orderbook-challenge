@@ -3,6 +3,15 @@ import { createFakeWsClientFactory } from "../test-utils/fakeWsClientFactory";
 import { stubRafQueue } from "../test-utils/raf";
 import { createOrderbookStore } from "./orderbookStore";
 
+function withFakeTimers<T>(fn: () => T) {
+  jest.useFakeTimers();
+  try {
+    return fn();
+  } finally {
+    jest.useRealTimers();
+  }
+}
+
 describe("orderbookStore", () => {
   it("stores normalized top 10 levels", () => {
     const { flush } = stubRafQueue();
@@ -76,31 +85,84 @@ describe("orderbookStore", () => {
     expect(snapshot.asks[0].price).toBe(201);
   });
 
-  it("sets error state on client error", () => {
-    stubRafQueue();
-    const { clients, factory } = createFakeWsClientFactory();
-    const store = createOrderbookStore(factory);
+  it("retries on error up to the limit", () => {
+    withFakeTimers(() => {
+      stubRafQueue();
+      const { clients, factory } = createFakeWsClientFactory();
+      const store = createOrderbookStore(factory);
 
-    store.connect("BTCUSDT");
+      store.connect("BTCUSDT");
 
-    clients[0].handlers.onError(new Error("boom"));
+      clients[0].handlers.onError(new Error("boom"));
+      jest.advanceTimersByTime(1000);
 
-    const snapshot = store.getSnapshot();
-    expect(snapshot.status).toBe("error");
-    expect(snapshot.error).toBe("boom");
+      expect(clients).toHaveLength(2);
+      expect(clients[1].connect).toHaveBeenCalledTimes(1);
+
+      clients[1].handlers.onError(new Error("boom2"));
+      jest.advanceTimersByTime(1000);
+
+      expect(clients).toHaveLength(3);
+
+      clients[2].handlers.onError(new Error("boom3"));
+      jest.advanceTimersByTime(1000);
+
+      expect(clients).toHaveLength(4);
+
+      clients[3].handlers.onError(new Error("boom4"));
+      jest.advanceTimersByTime(1000);
+
+      // After max retries, no new client should be created
+      expect(clients).toHaveLength(4);
+      expect(store.getSnapshot().status).toBe("error");
+    });
   });
 
-  it("sets error state on client close", () => {
-    stubRafQueue();
-    const { clients, factory } = createFakeWsClientFactory();
-    const store = createOrderbookStore(factory);
+  it("resets retries on symbol change", () => {
+    withFakeTimers(() => {
+      stubRafQueue();
+      const { clients, factory } = createFakeWsClientFactory();
+      const store = createOrderbookStore(factory);
 
-    store.connect("BTCUSDT");
+      store.connect("BTCUSDT");
 
-    clients[0].handlers.onClose({ code: 1000 });
+      clients[0].handlers.onError(new Error("boom"));
+      store.connect("ETHUSDT");
 
-    const snapshot = store.getSnapshot();
-    expect(snapshot.status).toBe("error");
-    expect(snapshot.error).toBe("Connection closed");
+      // New symbol should create a new client immediately
+      expect(clients).toHaveLength(2);
+      expect(clients[1].connect).toHaveBeenCalledTimes(1);
+
+      // Late close from old client should be ignored
+      clients[0].handlers.onClose({ code: 1000 });
+      expect(store.getSnapshot().status).toBe("connecting");
+    });
+  });
+
+  it("clears retry on successful message", () => {
+    withFakeTimers(() => {
+      const { flush } = stubRafQueue();
+      const { clients, factory } = createFakeWsClientFactory();
+      const store = createOrderbookStore(factory);
+
+      store.connect("BTCUSDT");
+
+      clients[0].handlers.onError(new Error("boom"));
+      jest.runOnlyPendingTimers();
+
+      expect(clients).toHaveLength(2);
+
+      clients[1].handlers.onMessage({
+        lastUpdateId: 1,
+        bids: [["100", "1"]],
+        asks: [["101", "1"]],
+      });
+      flush();
+
+      // After success, another error should start retries from scratch
+      clients[1].handlers.onError(new Error("boom2"));
+      jest.runOnlyPendingTimers();
+      expect(clients).toHaveLength(3);
+    });
   });
 });
